@@ -1,13 +1,9 @@
 import struct
 
-""" class TestMethods:
-    def integ():
-        a = 1286060648
-        e = [a for _ in range(10000000)] """
 
 
 class PFloat:
-    
+
     def __init__(self, num: int = 0):
         # Create 32-bit integer representation of given integer
         num, sign = self.getSign(num)
@@ -38,12 +34,3 @@ class PFloat:
         if num > 0:
             return num, 0
         return -1 * num, 1
-
-def main():
-    new = PFloat(1)
-    print(bin(new.pfloat))
-    print(new.pfloat)
-    print(new.toInt())
-
-if __name__ == "__main__":
-    main()
