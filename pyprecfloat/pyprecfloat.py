@@ -14,6 +14,7 @@ class PFloat:
 
     def __init__(self, num: int = 0):
         # Create 32-bit integer representation of given integer
+
         divisor_exponent = 0
         sign, num = 0 if num >= 0 else 1, abs(num)
         if isinstance(num, float):
@@ -32,7 +33,6 @@ class PFloat:
 
     # Initial n is n % d
     # distance -1 or 1 based on direction
-    # Currently examining in space of 32 bits - if first bits are zero, shift into space and add to distance
     def createChild(self, n, distance=0): # How to get distance ; change -1 to class constant
         if not n: # No more bits left
             return None
@@ -65,23 +65,15 @@ class PFloat:
                 print("distance:" + str(c.distance) + "\n")
                 c = c.child
 
-
+    
     def toInt(self) -> int:
-        pos_adjustment = 23
+        return int(self.toFloat())
 
-        sign = self.pfloat & (1 << 31)
-        mantissa = self.pfloat & 0x7FFFFF | 1 << 23
-        exponent = (self.pfloat & 0x7F800000) >> 23
-        if (pos_adjustment - (exponent - 127) >= 0):
-            original = mantissa >> pos_adjustment - (exponent - 127)
-        else:
-            original = mantissa << (exponent - 127) - pos_adjustment
-        return original * (-1 if sign else 1)
 
     def toFloat(self) -> float:
         p = self.pfloat
 
-        sign = -1 if (p >> 31) & 1 else 1
+        sign = -1 if p >> 31 else 1
 
         exponent = ((p & 0x7F800000) >> 23) - 127
 
@@ -89,6 +81,7 @@ class PFloat:
         mantissa = 1 + mantissa_bits / (1 << 23)
 
         return sign * mantissa * (2 ** exponent)
+
 
     def reverseBits(num) -> int:
         res = 0
@@ -98,13 +91,9 @@ class PFloat:
             res |= a << (bitlen - 1 - i)
         return res
 
+
     def verify(self):
         return struct.unpack('f', struct.pack('I', self.pfloat))[0]
-    
-    def getSign(self, num: int | float):
-        if num > 0:
-            return num, 0
-        return -1 * num, 1
     
 
 class ChildNode:
