@@ -1,19 +1,18 @@
 import struct
 import math
 
-# separate child class; arb length but max of 32
-# Have distance in bits from lsb, value, child object
 # addition: add children to parent recursively
 # addition: track carry; update distance or add to parent if distance is 0
 # Add exponents and multiply mantissa
 # decimal_precision = 50; number of decimal places retained during initialization and math operations
 
 # Retrieve child values: recurse and get all vals, add them and divide by denominator to get decimal
-
+# 1701411631780596280800168768632819712
 class PFloat:
 
-    def __init__(self, num: int = 0):
+    def __init__(self, num: int | float = 0):
         # Create 32-bit integer representation of given integer
+        self.child = None
 
         divisor_exponent = 0
         sign, num = 0 if num >= 0 else 1, abs(num)
@@ -25,34 +24,103 @@ class PFloat:
         exponent = msb + 127 - divisor_exponent
         dist_from_mpos = 23 - msb
 
-        shifted = num << dist_from_mpos if dist_from_mpos >= 0 else num >> (-1 * dist_from_mpos)
-        mantissa = shifted & 0x7FFFFF # 11111111111111111111111; len 23
+        if dist_from_mpos >= 0:
+            shifted = num << dist_from_mpos
+            mantissa = shifted & 0x7FFFFF # 11111111111111111111111; len 23
+        else: # msb is further than 23 bits
+            dist_from_mpos = abs(dist_from_mpos)
+
+            shifted = num >> dist_from_mpos
+            mantissa = shifted & 0x7FFFFF
+            nonMantissaBits = num ^ ((mantissa + (1 << 23)) << dist_from_mpos)
+
+            size = 4
+            shift = nonMantissaBits.bit_length() - size
+            self.child = self.createChild(nonMantissaBits, shift)
+            print(bin(mantissa))
+            print(bin(nonMantissaBits))
+
         self.pfloat = (sign << 31) | exponent << 23 | mantissa
         self.exponent = exponent # DEBUG
-        self.child = None
+
 
     # Initial n is n % d
     # distance -1 or 1 based on direction
-    def createChild(self, n, distance=0): # How to get distance ; change -1 to class constant
+    def createChild(self, n, shift, distance=0): # How to get distance ; change -1 to class constant
         if not n: # No more bits left
             return None
-        
-        distance -= 1 # Child values start 1 bit behind parent by default
-        
-        # Remove leading zeros and add them to distance
-        lsb = (n & -n).bit_length() - 1
-        if lsb > 0:
-            distance -= lsb
-            n >>= lsb
 
-        size = 2 # DEBUG - change to 32
-        val = n & 3 # 11
-        trailing_zeros = val.bit_length() - size
+        size = 4 # DEBUG - change to 8 ; class constant
+
+        numLeadingZeros = (shift + size) - n.bit_length()
+        if numLeadingZeros:
+            distance -= numLeadingZeros
+            shift -= numLeadingZeros
+
+        if shift < 0: # last set of bits
+            shift = 0
+        val = n >> shift # No need to bitmask since these are the highest set bits
+        n ^= val << shift
+        trailing_zeros = (val & -val).bit_length() - 1 # lsb
+        val >>= trailing_zeros
         
         newChild = ChildNode(val, distance)
-        newChild.child = self.createChild(n >> size, trailing_zeros)
+        newChild.child = self.createChild(n, shift - size, -trailing_zeros)
         return newChild
+
+
+    def toInt(self) -> int:
+        return int(self.toFloat())
     
+    def toFloat(self) -> float:
+        p = self.pfloat
+
+        sign = -1 if p >> 31 else 1
+
+        exponent = ((p & 0x7F800000) >> 23) - 127
+        mantissa_bits = (1 << 23) | (p & 0x7FFFFF)
+        nonMantissaBits = self.retrieveChildValues(exponent)
+        mantissa = (mantissa_bits * (2 ** (exponent - 23))) + nonMantissaBits
+
+        return sign * mantissa
+
+
+    """ def toFloat(self) -> float:
+        p = self.pfloat
+
+        sign = -1 if p >> 31 else 1
+
+        exponent = ((p & 0x7F800000) >> 23) - 127
+        mantissa_bits = p & 0x7FFFFF
+        nonMantissaBits = self.retrieveChildValues(exponent)
+        mantissa = 1 + mantissa_bits / (1 << 23)
+        
+        intermed = mantissa * (2 ** exponent) + nonMantissaBits
+        return sign * intermed """
+    
+    def retrieveChildValues(self, exponent) -> int:
+        total = 0
+        c = self.child
+        exponent -= 23
+
+        while c:
+            val = c.value
+            distance = c.distance
+            exponent += distance - val.bit_length()
+            total += val * (2 ** exponent)
+            c = c.child
+        return total
+        
+
+
+    def reverseBits(num) -> int:
+        res = 0
+        bitlen = len(bin(num)) - 2 #Update with pos of floating point
+        for i in range(bitlen):
+            a = (num >> i) & 1
+            res |= a << (bitlen - 1 - i)
+        return res
+
     def showNodes(self):
         print("\nPARENT")
         print(self.toFloat())
@@ -64,33 +132,8 @@ class PFloat:
                 print(bin(c.value)[2:])
                 print("distance:" + str(c.distance) + "\n")
                 c = c.child
-
-    
-    def toInt(self) -> int:
-        return int(self.toFloat())
-
-
-    def toFloat(self) -> float:
-        p = self.pfloat
-
-        sign = -1 if p >> 31 else 1
-
-        exponent = ((p & 0x7F800000) >> 23) - 127
-
-        mantissa_bits = p & 0x7FFFFF
-        mantissa = 1 + mantissa_bits / (1 << 23)
-
-        return sign * mantissa * (2 ** exponent)
-
-
-    def reverseBits(num) -> int:
-        res = 0
-        bitlen = len(bin(num)) - 2 #Update with pos of floating point
-        for i in range(bitlen):
-            a = (num >> i) & 1
-            res |= a << (bitlen - 1 - i)
-        return res
-
+        else:
+            print("NO CHILD NODE")
 
     def verify(self):
         return struct.unpack('f', struct.pack('I', self.pfloat))[0]
