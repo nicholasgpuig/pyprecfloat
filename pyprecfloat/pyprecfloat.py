@@ -1,17 +1,13 @@
 import struct
 import math
 
-# addition: add children to parent recursively
-# addition: track carry; update distance or add to parent if distance is 0
-# Add exponents and multiply mantissa
-# decimal_precision = 50; number of decimal places retained during initialization and math operations
 
-# Retrieve child values: recurse and get all vals, add them and divide by denominator to get decimal
-# 1701411631780596280800168768632819712
 class PFloat:
+    CHILD_NODE_SIZE = 8
 
     def __init__(self, num: int | float = 0):
         # Create 32-bit integer representation of given integer
+        # Bits unable to be stored in the mantissa are stored in child nodes, forming a linked list of values with this object at the head
         self.child = None
 
         divisor_exponent = 0
@@ -34,25 +30,19 @@ class PFloat:
             mantissa = shifted & 0x7FFFFF
             nonMantissaBits = num ^ ((mantissa + (1 << 23)) << dist_from_mpos)
 
-            size = 4
-            shift = nonMantissaBits.bit_length() - size
+            shift = nonMantissaBits.bit_length() - self.CHILD_NODE_SIZE
             self.child = self.createChild(nonMantissaBits, shift)
-            print(bin(mantissa))
-            print(bin(nonMantissaBits))
 
         self.pfloat = (sign << 31) | exponent << 23 | mantissa
         self.exponent = exponent # DEBUG
 
 
-    # Initial n is n % d
-    # distance -1 or 1 based on direction
-    def createChild(self, n, shift, distance=0): # How to get distance ; change -1 to class constant
+
+    def createChild(self, n, shift, distance=0):
         if not n: # No more bits left
             return None
 
-        size = 4 # DEBUG - change to 8 ; class constant
-
-        numLeadingZeros = (shift + size) - n.bit_length()
+        numLeadingZeros = (shift + self.CHILD_NODE_SIZE) - n.bit_length()
         if numLeadingZeros:
             distance -= numLeadingZeros
             shift -= numLeadingZeros
@@ -65,7 +55,7 @@ class PFloat:
         val >>= trailing_zeros
         
         newChild = ChildNode(val, distance)
-        newChild.child = self.createChild(n, shift - size, -trailing_zeros)
+        newChild.child = self.createChild(n, shift - self.CHILD_NODE_SIZE, -trailing_zeros)
         return newChild
 
 
@@ -115,7 +105,7 @@ class PFloat:
 
     def reverseBits(num) -> int:
         res = 0
-        bitlen = len(bin(num)) - 2 #Update with pos of floating point
+        bitlen = len(bin(num)) - 2
         for i in range(bitlen):
             a = (num >> i) & 1
             res |= a << (bitlen - 1 - i)
