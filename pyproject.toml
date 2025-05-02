@@ -14,9 +14,6 @@ classifiers = [
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
 
-[project.urls]
-Homepage = ""
-Issues = ""
 
 [build-system]
 requires = ["setuptools>=61.0"]

@@ -1,5 +1,4 @@
 import struct
-import math
 
 
 class PFloat:
@@ -14,16 +13,16 @@ class PFloat:
         sign, num = 0 if num >= 0 else 1, abs(num)
         if isinstance(num, float):
             num, d = num.as_integer_ratio()
-            divisor_exponent = d.bit_length() - 1 # power of 2
+            divisor_exponent = d.bit_length() - 1  # power of 2
 
-        msb = num.bit_length() - 1 # Subtract space of implicit leading 1
+        msb = num.bit_length() - 1  # Subtract space of implicit leading 1
         exponent = msb + 127 - divisor_exponent
         dist_from_mpos = 23 - msb
 
         if dist_from_mpos >= 0:
             shifted = num << dist_from_mpos
-            mantissa = shifted & 0x7FFFFF # 11111111111111111111111; len 23
-        else: # msb is further than 23 bits
+            mantissa = shifted & 0x7FFFFF  # 11111111111111111111111; len 23
+        else:  # msb is further than 23 bits
             dist_from_mpos = abs(dist_from_mpos)
 
             shifted = num >> dist_from_mpos
@@ -34,12 +33,10 @@ class PFloat:
             self.child = self.createChild(nonMantissaBits, shift)
 
         self.pfloat = (sign << 31) | exponent << 23 | mantissa
-        self.exponent = exponent # DEBUG
-
-
+        self.exponent = exponent  # DEBUG
 
     def createChild(self, n, shift, distance=0):
-        if not n: # No more bits left
+        if not n:  # No more bits left
             return None
 
         numLeadingZeros = (shift + self.CHILD_NODE_SIZE) - n.bit_length()
@@ -47,21 +44,22 @@ class PFloat:
             distance -= numLeadingZeros
             shift -= numLeadingZeros
 
-        if shift < 0: # last set of bits
+        if shift < 0:  # last set of bits
             shift = 0
-        val = n >> shift # No need to bitmask since these are the highest set bits
+        val = n >> shift  # No need to bitmask since these are the highest set bits
         n ^= val << shift
-        trailing_zeros = (val & -val).bit_length() - 1 # lsb
+        trailing_zeros = (val & -val).bit_length() - 1  # lsb
         val >>= trailing_zeros
-        
-        newChild = ChildNode(val, distance)
-        newChild.child = self.createChild(n, shift - self.CHILD_NODE_SIZE, -trailing_zeros)
-        return newChild
 
+        newChild = ChildNode(val, distance)
+        newChild.child = self.createChild(
+            n, shift - self.CHILD_NODE_SIZE, -trailing_zeros
+        )
+        return newChild
 
     def toInt(self) -> int:
         return int(self.toFloat())
-    
+
     def toFloat(self) -> float:
         p = self.pfloat
 
@@ -73,7 +71,6 @@ class PFloat:
         mantissa = (mantissa_bits * (2 ** (exponent - 23))) + nonMantissaBits
 
         return sign * mantissa
-
 
     """ def toFloat(self) -> float:
         p = self.pfloat
@@ -87,7 +84,7 @@ class PFloat:
         
         intermed = mantissa * (2 ** exponent) + nonMantissaBits
         return sign * intermed """
-    
+
     def retrieveChildValues(self, exponent) -> int:
         total = 0
         c = self.child
@@ -97,11 +94,9 @@ class PFloat:
             val = c.value
             distance = c.distance
             exponent += distance - val.bit_length()
-            total += val * (2 ** exponent)
+            total += val * (2**exponent)
             c = c.child
         return total
-        
-
 
     def reverseBits(num) -> int:
         res = 0
@@ -126,11 +121,10 @@ class PFloat:
             print("NO CHILD NODE")
 
     def verify(self):
-        return struct.unpack('f', struct.pack('I', self.pfloat))[0]
-    
+        return struct.unpack("f", struct.pack("I", self.pfloat))[0]
+
 
 class ChildNode:
-    
     def __init__(self, value, distance):
         self.value = value
         self.distance = distance
