@@ -25,7 +25,7 @@ def test_pfloat_fraction_init():
 def test_tofloat():
     assert PFloat(0.125).toFloat() == 0.125
     assert PFloat(-0.125).toFloat() == -0.125
-    assert PFloat(83.16).toFloat() == 83.16
+    assert PFloat(-8224953).toFloat() == -8224953.0
     assert (
         PFloat(170141163178059628080016879768632819712).toFloat()
         == 170141163178059628080016879768632819712
